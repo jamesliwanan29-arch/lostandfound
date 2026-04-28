@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LostFind">
+<link rel="apple-touch-icon" href="/icon-192.png">
 </head>
 <body>
   <div id="navbar-mount"></div>
@@ -195,7 +196,11 @@
   </script>
   <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('SW registered'))
+        .catch(err => console.log('SW error:', err));
+    });
   }
 </script>
 </body>
