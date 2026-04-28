@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Items — LostFind</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <div class="page-wrapper">
+    <div class="container section">
+      <div class="section-header">
+        <div>
+          <h2>Browse Items</h2>
+          <p>Search all lost and found reports</p>
+        </div>
+        <a href="report.html" class="btn btn-primary">+ Report Item</a>
+      </div>
+
+      <!-- SEARCH + SORT -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:20px">
+        <div class="search-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="browse-search" placeholder="Search by name, location, description..." autocomplete="off">
+          <div class="search-suggestions" id="browse-suggestions"></div>
+        </div>
+        <select class="form-control" id="sort-select" style="width:auto;min-width:160px">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="alpha">A–Z</option>
+        </select>
+      </div>
+
+      <!-- FILTERS -->
+      <div class="filters-row" id="type-filters">
+        <span style="font-size:13px;color:var(--text-muted);font-weight:600">Type:</span>
+        <button class="filter-chip active" data-filter="all">All</button>
+        <button class="filter-chip" data-filter="lost">🔴 Lost</button>
+        <button class="filter-chip" data-filter="found">🟢 Found</button>
+      </div>
+      <div class="filters-row" id="status-filters">
+        <span style="font-size:13px;color:var(--text-muted);font-weight:600">Status:</span>
+        <button class="filter-chip active" data-filter="all">All</button>
+        <button class="filter-chip" data-filter="lost">Active Lost</button>
+        <button class="filter-chip" data-filter="found">Active Found</button>
+        <button class="filter-chip" data-filter="matched">Matched</button>
+        <button class="filter-chip" data-filter="claimed">Claimed</button>
+        <button class="filter-chip" data-filter="returned">Returned</button>
+      </div>
+      <div class="filters-row" id="cat-filters">
+        <span style="font-size:13px;color:var(--text-muted);font-weight:600">Category:</span>
+        <button class="filter-chip active" data-filter="all">All</button>
+        <!-- categories injected by JS -->
+      </div>
+
+      <!-- RESULT COUNT -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <span id="result-count" style="font-size:14px;color:var(--text-muted)">Loading...</span>
+      </div>
+
+      <!-- GRID -->
+      <div class="items-grid" id="items-grid"></div>
+
+      <!-- EMPTY -->
+      <div id="empty-state" class="hidden" style="text-align:center;padding:80px 20px">
+        <div style="font-size:4rem;margin-bottom:16px">🔍</div>
+        <h3>No items found</h3>
+        <p>Try adjusting your search or filters.</p>
+        <a href="report.html" class="btn btn-primary" style="margin-top:16px">Report an Item</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    UI.mountNavbar();
+
+    // ── INJECT CATEGORY FILTERS ──
+    const catFilters = document.getElementById('cat-filters');
+    DB.CATEGORIES.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'filter-chip';
+      btn.dataset.filter = cat;
+      btn.innerHTML = `${UI.getCategoryIcon(cat)} ${cat}`;
+      catFilters.appendChild(btn);
+    });
+
+    // ── STATE ──
+    let filters = { type: 'all', status: 'all', category: 'all', q: '', sort: 'newest' };
+
+    // Pre-apply from URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('category')) {
+      filters.category = params.get('category');
+      catFilters.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.filter === filters.category);
+      });
+    }
+
+    // ── RENDER ──
+    const render = () => {
+      const dbFilters = {};
+      if (filters.type !== 'all') dbFilters.type = filters.type;
+      if (filters.status !== 'all') dbFilters.status = filters.status;
+      if (filters.category !== 'all') dbFilters.category = filters.category;
+      if (filters.q) dbFilters.q = filters.q;
+
+      let items = DB.getItems(dbFilters);
+
+      // Sort
+      if (filters.sort === 'oldest')  items.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      if (filters.sort === 'newest')  items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (filters.sort === 'alpha')   items.sort((a, b) => a.title.localeCompare(b.title));
+
+      const grid = document.getElementById('items-grid');
+      const empty = document.getElementById('empty-state');
+      document.getElementById('result-count').textContent = `${items.length} item${items.length !== 1 ? 's' : ''} found`;
+
+      if (!items.length) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+      } else {
+        grid.innerHTML = items.map(i => UI.renderItemCard(i)).join('');
+        empty.classList.add('hidden');
+      }
+    };
+
+    // ── FILTER CHIP HANDLERS ──
+    const bindChips = (rowId, key) => {
+      document.getElementById(rowId).querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.getElementById(rowId).querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          filters[key] = chip.dataset.filter;
+          render();
+        });
+      });
+    };
+    bindChips('type-filters', 'type');
+    bindChips('status-filters', 'status');
+    bindChips('cat-filters', 'category');
+
+    // ── SEARCH ──
+    let searchTimeout;
+    document.getElementById('browse-search').addEventListener('input', e => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => { filters.q = e.target.value.trim(); render(); }, 250);
+    });
+
+    // ── SORT ──
+    document.getElementById('sort-select').addEventListener('change', e => {
+      filters.sort = e.target.value; render();
+    });
+
+    // ── AUTOCOMPLETE ──
+    UI.initSearch(
+      document.getElementById('browse-search'),
+      document.getElementById('browse-suggestions'),
+      q => DB.getItems({ q }),
+      id => UI.openItemDetail(id)
+    );
+
+    render();
+  </script>
+</body>
+</html>

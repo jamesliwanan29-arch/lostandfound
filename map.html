@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Map View — LostFind</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    #map { height: 520px; border-radius: var(--radius); border: 1px solid var(--border); }
+    .leaflet-popup-content-wrapper {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius-sm) !important;
+      box-shadow: var(--shadow-lg) !important;
+    }
+    .leaflet-popup-tip { background: var(--surface) !important; }
+    .leaflet-popup-content { margin: 14px 18px !important; }
+    .map-popup-title { font-family: var(--font-head); font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+    .map-popup-loc { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+    .map-popup-btn {
+      display: inline-block; background: var(--accent); color: #000;
+      padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: none; font-family: var(--font-body);
+    }
+    .map-controls {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 16px; align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <div class="page-wrapper">
+    <div class="container section">
+      <div class="section-header">
+        <div>
+          <h2>🗺️ Map View</h2>
+          <p>See all reported items on the map. Click pins for details.</p>
+        </div>
+        <a href="report.html" class="btn btn-primary">+ Report Item</a>
+      </div>
+
+      <!-- CONTROLS -->
+      <div class="map-controls">
+        <button class="filter-chip active" data-map-filter="all">All Items</button>
+        <button class="filter-chip" data-map-filter="lost">🔴 Lost</button>
+        <button class="filter-chip" data-map-filter="found">🟢 Found</button>
+        <button class="filter-chip" data-map-filter="matched">🟣 Matched</button>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="locate-me-btn">📍 My Location</button>
+          <button class="btn btn-ghost btn-sm" id="reset-view-btn">🔄 Reset View</button>
+        </div>
+      </div>
+
+      <!-- MAP -->
+      <div id="map"></div>
+
+      <!-- LEGEND -->
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px">
+        <span>🔴 Lost item</span>
+        <span>🟢 Found item</span>
+        <span>🟣 Matched item</span>
+        <span>🟡 Claimed/Returned</span>
+      </div>
+
+      <!-- ITEMS LIST BELOW MAP -->
+      <div style="margin-top:40px">
+        <h3 style="margin-bottom:16px">Items on Map</h3>
+        <div class="items-grid" id="map-items-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    UI.mountNavbar();
+
+    // ── MAP INIT (OpenStreetMap — FREE, no billing) ──
+    const map = L.map('map', { zoomControl: true }).setView([10.3157, 123.8854], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    // ── CUSTOM ICONS ──
+    const makeIcon = (color, emoji) => L.divIcon({
+      html: `<div style="width:36px;height:36px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">
+               <span style="transform:rotate(45deg);font-size:16px">${emoji}</span>
+             </div>`,
+      className: '',
+      iconSize: [36, 36],
+      iconAnchor: [18, 36],
+      popupAnchor: [0, -36]
+    });
+
+    const icons = {
+      lost:     makeIcon('#e8415b', '😢'),
+      found:    makeIcon('#3ecfb2', '🎉'),
+      matched:  makeIcon('#a78bfa', '🔗'),
+      claimed:  makeIcon('#f5a623', '📋'),
+      returned: makeIcon('#4ade80', '✅'),
+    };
+
+    let markers = [];
+    let currentFilter = 'all';
+
+    // ── RENDER MARKERS ──
+    const renderMarkers = (filter) => {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+
+      const items = DB.getAll('items').filter(i => {
+        if (filter === 'all') return true;
+        if (filter === 'lost') return i.type === 'lost' && i.status === 'lost';
+        if (filter === 'found') return i.type === 'found' && i.status === 'found';
+        return i.status === filter;
+      });
+
+      items.forEach(item => {
+        if (!item.lat || !item.lng) return;
+        const icon = icons[item.status] || icons[item.type] || icons.lost;
+        const marker = L.marker([item.lat, item.lng], { icon });
+        marker.addTo(map);
+        marker.bindPopup(`
+          <div style="min-width:200px">
+            <div class="map-popup-title">${item.title}</div>
+            <div style="margin-bottom:6px">
+              <span style="background:${item.type==='lost'?'rgba(232,65,91,0.2)':'rgba(62,207,178,0.2)'};color:${item.type==='lost'?'#e8415b':'#3ecfb2'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${item.type.toUpperCase()}</span>
+            </div>
+            <div class="map-popup-loc">📍 ${item.location}</div>
+            <div class="map-popup-loc">📅 ${UI.formatDate(item.date)}</div>
+            <button class="map-popup-btn" onclick="UI.openItemDetail('${item.id}')">View Details →</button>
+          </div>
+        `);
+        markers.push(marker);
+      });
+
+      // Render grid
+      document.getElementById('map-items-grid').innerHTML = items.slice(0, 8).map(i => UI.renderItemCard(i)).join('');
+    };
+
+    renderMarkers('all');
+
+    // ── FILTER CHIPS ──
+    document.querySelectorAll('[data-map-filter]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('[data-map-filter]').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        renderMarkers(chip.dataset.mapFilter);
+      });
+    });
+
+    // ── LOCATE ME ──
+    document.getElementById('locate-me-btn').addEventListener('click', () => {
+      if (!navigator.geolocation) { UI.toast('Geolocation not supported', 'error'); return; }
+      navigator.geolocation.getCurrentPosition(pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+        L.circle([pos.coords.latitude, pos.coords.longitude], { radius: 500, color: '#f5a623', fillOpacity: 0.1 }).addTo(map);
+        UI.toast('Showing your location', 'success');
+      }, () => UI.toast('Could not get your location', 'error'));
+    });
+
+    // ── RESET VIEW ──
+    document.getElementById('reset-view-btn').addEventListener('click', () => {
+      map.setView([10.3157, 123.8854], 12);
+    });
+  </script>
+</body>
+</html>

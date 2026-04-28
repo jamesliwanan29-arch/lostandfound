@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications — LostFind</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <div class="page-wrapper">
+    <div class="container section" style="max-width:700px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px">
+        <div>
+          <h2>🔔 Notifications</h2>
+          <p>Stay updated on your items</p>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="mark-all-btn">✓ Mark all read</button>
+      </div>
+
+      <div id="notif-container"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    UI.mountNavbar();
+    const session = UI.requireAuth();
+    if (!session) throw new Error('no auth');
+
+    const render = () => {
+      const notifs = DB.getNotifications(session.id);
+      const container = document.getElementById('notif-container');
+
+      if (!notifs.length) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:80px 20px;color:var(--text-muted)">
+            <div style="font-size:4rem;margin-bottom:16px">🔔</div>
+            <h3>No notifications yet</h3>
+            <p>You'll be notified when items are matched or status changes.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const unread = notifs.filter(n => !n.read);
+      const read = notifs.filter(n => n.read);
+
+      container.innerHTML = `
+        ${unread.length ? `
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">NEW (${unread.length})</div>
+          <div class="card" style="padding:8px;margin-bottom:24px">
+            ${unread.map(n => notifHTML(n)).join('')}
+          </div>
+        ` : ''}
+        ${read.length ? `
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">EARLIER</div>
+          <div class="card" style="padding:8px">
+            ${read.map(n => notifHTML(n)).join('')}
+          </div>
+        ` : ''}
+      `;
+
+      // Bind clicks
+      container.querySelectorAll('[data-notif-id]').forEach(el => {
+        el.addEventListener('click', () => {
+          DB.markNotifRead(el.dataset.notifId);
+          el.classList.remove('unread');
+          el.querySelector('.notif-dot')?.remove();
+          const itemId = el.dataset.itemId;
+          if (itemId) UI.openItemDetail(itemId);
+          UI.mountNavbar(); // refresh unread count
+        });
+      });
+    };
+
+    const notifHTML = (n) => {
+      const icons = { match: '🔗', info: 'ℹ️', success: '✅', alert: '⚠️' };
+      const colors = { match: 'rgba(167,139,250,0.2)', info: 'rgba(245,166,35,0.2)', success: 'rgba(62,207,178,0.2)', alert: 'rgba(232,65,91,0.2)' };
+      return `
+        <div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${n.id}" data-item-id="${n.itemId || ''}">
+          <div class="notif-icon" style="background:${colors[n.type]||colors.info}">${icons[n.type]||'ℹ️'}</div>
+          <div class="notif-body">
+            <div class="notif-title">${n.title}</div>
+            <div class="notif-msg">${n.message}</div>
+            <div class="notif-time">${UI.timeAgo(n.createdAt)}</div>
+          </div>
+          ${!n.read ? '<div class="notif-dot" style="position:static;width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:4px"></div>' : ''}
+        </div>
+      `;
+    };
+
+    document.getElementById('mark-all-btn').addEventListener('click', () => {
+      DB.getNotifications(session.id).forEach(n => DB.markNotifRead(n.id));
+      render();
+      UI.mountNavbar();
+      UI.toast('All notifications marked as read', 'success');
+    });
+
+    render();
+  </script>
+</body>
+</html>

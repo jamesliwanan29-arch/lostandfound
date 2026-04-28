@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login / Register — LostFind</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .auth-wrapper {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(245,166,35,0.08), transparent 70%);
+      padding: 24px;
+    }
+    .auth-card { width: 100%; max-width: 440px; }
+    .auth-logo { text-align: center; margin-bottom: 32px; }
+    .auth-logo .logo-icon { width: 56px; height: 56px; background: var(--accent); border-radius: 16px; display: grid; place-items: center; font-size: 28px; margin: 0 auto 12px; }
+  </style>
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-icon">🔍</div>
+        <h1 style="font-size:1.8rem">LostFind</h1>
+        <p style="margin-top:4px">Lost & Found Tracking System</p>
+      </div>
+
+      <!-- TABS -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
+          <button class="tab-toggle active" id="login-tab" style="padding:16px;font-family:var(--font-head);font-size:15px;font-weight:700;background:var(--surface);border:none;color:var(--text);cursor:pointer;border-bottom:2px solid var(--accent)">Login</button>
+          <button class="tab-toggle" id="register-tab" style="padding:16px;font-family:var(--font-head);font-size:15px;font-weight:700;background:transparent;border:none;color:var(--text-muted);cursor:pointer;transition:all 0.2s">Register</button>
+        </div>
+
+        <!-- LOGIN PANEL -->
+        <div id="login-panel" style="padding:28px">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="login-email" placeholder="your@email.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" id="login-password" placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <button class="btn btn-primary w-full btn-lg" id="login-btn" style="margin-top:8px">Login →</button>
+          <div class="divider"></div>
+          <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;font-size:13px">
+            <div style="font-weight:600;margin-bottom:6px;color:var(--text-muted)">🔑 Demo Accounts</div>
+            <div style="display:grid;gap:4px">
+              <div><span style="color:var(--accent)">Admin:</span> admin@lnf.com / admin123</div>
+              <div><span style="color:var(--found)">User:</span> juan@example.com / user123</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REGISTER PANEL -->
+        <div id="register-panel" style="padding:28px;display:none">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="reg-name" placeholder="Juan Dela Cruz">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="reg-email" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" id="reg-password" placeholder="Min. 6 characters">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <input type="password" class="form-control" id="reg-confirm" placeholder="Repeat password">
+          </div>
+          <button class="btn btn-primary w-full btn-lg" id="register-btn" style="margin-top:8px">Create Account →</button>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:20px">
+        <a href="index.html" style="font-size:13px;color:var(--text-muted)">← Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (DB.getSession()) window.location.href = 'index.html';
+
+    const loginTab   = document.getElementById('login-tab');
+    const regTab     = document.getElementById('register-tab');
+    const loginPanel = document.getElementById('login-panel');
+    const regPanel   = document.getElementById('register-panel');
+
+    loginTab.addEventListener('click', () => {
+      loginPanel.style.display = 'block'; regPanel.style.display = 'none';
+      loginTab.style.borderBottom = '2px solid var(--accent)'; loginTab.style.color = 'var(--text)'; loginTab.style.background = 'var(--surface)';
+      regTab.style.borderBottom = 'none'; regTab.style.color = 'var(--text-muted)'; regTab.style.background = 'transparent';
+    });
+    regTab.addEventListener('click', () => {
+      regPanel.style.display = 'block'; loginPanel.style.display = 'none';
+      regTab.style.borderBottom = '2px solid var(--accent)'; regTab.style.color = 'var(--text)'; regTab.style.background = 'var(--surface)';
+      loginTab.style.borderBottom = 'none'; loginTab.style.color = 'var(--text-muted)'; loginTab.style.background = 'transparent';
+    });
+
+    // ── LOGIN ──
+    document.getElementById('login-btn').addEventListener('click', () => {
+      const email = document.getElementById('login-email').value.trim();
+      const pass  = document.getElementById('login-password').value;
+      if (!email || !pass) { UI.toast('Please fill in all fields', 'error'); return; }
+      const user = DB.login(email, pass);
+      if (!user) { UI.toast('Invalid email or password', 'error'); return; }
+      UI.toast(`Welcome back, ${user.name.split(' ')[0]}! 👋`, 'success');
+      setTimeout(() => window.location.href = user.role === 'admin' ? 'admin.html' : 'index.html', 800);
+    });
+
+    // Enter key login
+    [document.getElementById('login-email'), document.getElementById('login-password')].forEach(el => {
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-btn').click(); });
+    });
+
+    // ── REGISTER ──
+    document.getElementById('register-btn').addEventListener('click', () => {
+      const name    = document.getElementById('reg-name').value.trim();
+      const email   = document.getElementById('reg-email').value.trim();
+      const pass    = document.getElementById('reg-password').value;
+      const confirm = document.getElementById('reg-confirm').value;
+      if (!name || !email || !pass) { UI.toast('Please fill in all fields', 'error'); return; }
+      if (pass.length < 6) { UI.toast('Password must be at least 6 characters', 'error'); return; }
+      if (pass !== confirm) { UI.toast('Passwords do not match', 'error'); return; }
+      const user = DB.register(name, email, pass);
+      if (!user) { UI.toast('Email already registered', 'error'); return; }
+      UI.toast(`Account created! Welcome, ${name.split(' ')[0]}! 🎉`, 'success');
+      setTimeout(() => window.location.href = 'index.html', 800);
+    });
+  </script>
+</body>
+</html>

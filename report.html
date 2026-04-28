@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Item — LostFind</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <div class="page-wrapper">
+    <div class="container section" style="max-width:760px">
+      <div style="margin-bottom:32px">
+        <h2>Report an Item</h2>
+        <p>Fill in the details below. The more info you provide, the better our matching system works.</p>
+      </div>
+
+      <!-- TYPE TOGGLE -->
+      <div class="card" style="margin-bottom:24px;padding:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text-muted)">ITEM TYPE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label id="type-lost" class="type-toggle-card" style="cursor:pointer;border:2px solid var(--lost);border-radius:var(--radius);padding:20px;text-align:center;background:rgba(232,65,91,0.08)">
+            <input type="radio" name="item-type" value="lost" style="display:none" checked>
+            <div style="font-size:2.5rem;margin-bottom:8px">😢</div>
+            <div style="font-weight:700;color:var(--lost)">I Lost Something</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Report a lost item</div>
+          </label>
+          <label id="type-found" class="type-toggle-card" style="cursor:pointer;border:2px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;transition:all var(--transition)">
+            <input type="radio" name="item-type" value="found" style="display:none">
+            <div style="font-size:2.5rem;margin-bottom:8px">🎉</div>
+            <div style="font-weight:700;color:var(--found)">I Found Something</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Report a found item</div>
+          </label>
+        </div>
+      </div>
+
+      <!-- FORM -->
+      <div class="card">
+        <form id="report-form" autocomplete="off">
+          <h3 style="margin-bottom:20px">Item Details</h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Item Name *</label>
+              <input type="text" class="form-control" id="item-title" placeholder="e.g. Black iPhone 14" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category *</label>
+              <select class="form-control" id="item-category" required>
+                <option value="">Select category...</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea class="form-control" id="item-desc" placeholder="Describe the item in detail — color, brand, unique marks, contents, etc." rows="4" required></textarea>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Tip: The more details, the higher the chance of a match!</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Location *</label>
+              <input type="text" class="form-control" id="item-location" placeholder="e.g. SM Seaside City, Cebu" required>
+              <div id="location-suggestions" class="search-suggestions" style="position:relative;top:0;z-index:10;display:none"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date *</label>
+              <input type="date" class="form-control" id="item-date" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tags <span style="color:var(--text-muted);font-weight:400">(comma separated)</span></label>
+              <input type="text" class="form-control" id="item-tags" placeholder="e.g. black, leather, bifold">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contact Info <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+              <input type="text" class="form-control" id="item-contact" placeholder="Phone or email">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Photo <span style="color:var(--text-muted);font-weight:400">(optional but recommended)</span></label>
+            <div class="upload-zone" id="item-upload-zone">
+              <input type="file" accept="image/*" id="item-image-input">
+              <div class="upload-icon">🖼️</div>
+              <div class="upload-text">Click or drag & drop image here (JPG, PNG)</div>
+              <div class="upload-preview"></div>
+            </div>
+          </div>
+
+          <!-- MATCHES PREVIEW (shown after title/desc entered) -->
+          <div id="match-preview-section" class="hidden">
+            <div class="divider"></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:18px">🤖</span>
+              <h3>Possible Matches Found</h3>
+              <span class="badge badge-matched" id="match-count-badge">0</span>
+            </div>
+            <p style="margin-bottom:16px">Based on what you entered, these existing reports might be related:</p>
+            <div id="match-preview-list" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+
+          <div class="divider"></div>
+          <div style="display:flex;gap:12px;justify-content:flex-end">
+            <a href="browse.html" class="btn btn-ghost">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+              📢 Submit Report
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS MODAL -->
+  <div class="modal-overlay" id="success-modal">
+    <div class="modal" style="text-align:center">
+      <div style="font-size:4rem;margin-bottom:16px">🎉</div>
+      <h2>Item Reported!</h2>
+      <p style="margin:12px 0 8px">Your item has been submitted successfully.</p>
+      <div id="success-match-msg" style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:var(--radius-sm);padding:14px;margin:16px 0;display:none">
+        <div style="color:var(--matched);font-weight:700;margin-bottom:4px">🎯 Potential Match Found!</div>
+        <div style="font-size:14px;color:var(--text-muted)">Our system found a possible match. Check your notifications!</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
+        <a href="browse.html" class="btn btn-ghost">Browse Items</a>
+        <a href="profile.html" class="btn btn-primary">My Reports</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    UI.mountNavbar();
+
+    // Pre-select type from URL
+    const params = new URLSearchParams(window.location.search);
+    const preType = params.get('type');
+    if (preType === 'found') {
+      document.querySelector('input[value="found"]').checked = true;
+      updateTypeUI('found');
+    }
+
+    // Set today's date
+    document.getElementById('item-date').value = new Date().toISOString().split('T')[0];
+
+    // Populate categories
+    const catSel = document.getElementById('item-category');
+    DB.CATEGORIES.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = `${UI.getCategoryIcon(cat)} ${cat}`;
+      catSel.appendChild(opt);
+    });
+
+    // ── TYPE TOGGLE ──
+    function updateTypeUI(type) {
+      const lostCard = document.getElementById('type-lost');
+      const foundCard = document.getElementById('type-found');
+      if (type === 'lost') {
+        lostCard.style.border = '2px solid var(--lost)';
+        lostCard.style.background = 'rgba(232,65,91,0.08)';
+        foundCard.style.border = '2px solid var(--border)';
+        foundCard.style.background = 'transparent';
+      } else {
+        foundCard.style.border = '2px solid var(--found)';
+        foundCard.style.background = 'rgba(62,207,178,0.08)';
+        lostCard.style.border = '2px solid var(--border)';
+        lostCard.style.background = 'transparent';
+      }
+    }
+    document.querySelectorAll('input[name="item-type"]').forEach(radio => {
+      radio.addEventListener('change', () => updateTypeUI(radio.value));
+    });
+
+    // ── IMAGE UPLOAD ──
+    let uploadedImage = null;
+    UI.initUploadZone(document.getElementById('item-upload-zone'), (dataUrl) => {
+      uploadedImage = dataUrl;
+    });
+
+    // ── LIVE MATCH PREVIEW ──
+    let matchTimeout;
+    const showMatchPreview = () => {
+      clearTimeout(matchTimeout);
+      matchTimeout = setTimeout(() => {
+        const title = document.getElementById('item-title').value.trim();
+        const desc = document.getElementById('item-desc').value.trim();
+        const type = document.querySelector('input[name="item-type"]:checked').value;
+        const cat = document.getElementById('item-category').value;
+        if (!title || title.length < 3) { document.getElementById('match-preview-section').classList.add('hidden'); return; }
+
+        const oppositeType = type === 'lost' ? 'found' : 'lost';
+        const candidates = DB.getItems({ type: oppositeType });
+        const q = (title + ' ' + desc).toLowerCase();
+        const matches = candidates
+          .map(c => ({ ...c, score: DB.getMatchScore({ title, description: desc, category: cat, tags: [] }, c) }))
+          .filter(c => c.score >= 20)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+
+        const section = document.getElementById('match-preview-section');
+        if (!matches.length) { section.classList.add('hidden'); return; }
+
+        section.classList.remove('hidden');
+        document.getElementById('match-count-badge').textContent = matches.length;
+        document.getElementById('match-preview-list').innerHTML = matches.map(m => `
+          <div class="match-card" onclick="UI.openItemDetail('${m.id}')" style="cursor:pointer">
+            <div class="match-score">${m.score}%</div>
+            <div style="flex:1">
+              <div style="font-weight:700">${m.title}</div>
+              <div style="font-size:13px;color:var(--text-muted)">${m.location} · ${UI.formatDate(m.date)}</div>
+            </div>
+            <span class="badge badge-${m.type}">${m.type}</span>
+          </div>
+        `).join('');
+      }, 500);
+    };
+    document.getElementById('item-title').addEventListener('input', showMatchPreview);
+    document.getElementById('item-desc').addEventListener('input', showMatchPreview);
+    document.getElementById('item-category').addEventListener('change', showMatchPreview);
+
+    // ── FORM SUBMIT ──
+    document.getElementById('report-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const session = DB.getSession();
+      if (!session) { UI.toast('Please login to report items', 'error'); setTimeout(() => window.location.href = 'auth.html', 1200); return; }
+
+      const title    = document.getElementById('item-title').value.trim();
+      const desc     = document.getElementById('item-desc').value.trim();
+      const location = document.getElementById('item-location').value.trim();
+      const date     = document.getElementById('item-date').value;
+      const category = document.getElementById('item-category').value;
+      const type     = document.querySelector('input[name="item-type"]:checked').value;
+      const tagsRaw  = document.getElementById('item-tags').value;
+      const tags     = tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+
+      if (!title || !desc || !location || !date || !category) {
+        UI.toast('Please fill in all required fields', 'error'); return;
+      }
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true; btn.textContent = 'Submitting...';
+
+      // Simulate small delay for UX
+      setTimeout(() => {
+        const item = DB.addItem({
+          title, description: desc, location, date, category, type, tags,
+          reportedBy: session.id, image: uploadedImage,
+          lat: 10.2929 + (Math.random() - 0.5) * 0.1,
+          lng: 123.8784 + (Math.random() - 0.5) * 0.1,
+        });
+
+        // Check if auto-matched
+        const freshItem = DB.getById('items', item.id);
+        const successMsg = document.getElementById('success-match-msg');
+        if (freshItem?.matchId) successMsg.style.display = 'block';
+
+        UI.openModal('success-modal');
+        btn.disabled = false; btn.textContent = '📢 Submit Report';
+        document.getElementById('report-form').reset();
+        uploadedImage = null;
+        document.querySelector('.upload-preview').innerHTML = '';
+      }, 600);
+    });
+  </script>
+</body>
+</html>

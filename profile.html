@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile — LostFind</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <div class="page-wrapper">
+    <div class="container section">
+      <div id="profile-content"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    UI.mountNavbar();
+    const session = UI.requireAuth();
+    if (!session) throw new Error('no session');
+
+    const stats = DB.getStats();
+    const myItems = DB.getItems({ userId: session.id });
+    const myNotifs = DB.getNotifications(session.id);
+    const myLost = myItems.filter(i => i.type === 'lost').length;
+    const myFound = myItems.filter(i => i.type === 'found').length;
+    const myMatched = myItems.filter(i => i.status === 'matched').length;
+
+    document.getElementById('profile-content').innerHTML = `
+      <!-- PROFILE HEADER -->
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:32px">
+        <div class="avatar" style="width:72px;height:72px;font-size:28px;border-radius:20px">${session.avatar}</div>
+        <div>
+          <h2>${session.name}</h2>
+          <p style="margin:4px 0">${session.email}</p>
+          <span class="badge ${session.role === 'admin' ? 'badge-matched' : 'badge-found'}" style="margin-top:6px">${session.role}</span>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:10px">
+          ${session.role === 'admin' ? '<a href="admin.html" class="btn btn-primary">Admin Dashboard</a>' : ''}
+          <button class="btn btn-ghost" onclick="logout()">🚪 Logout</button>
+        </div>
+      </div>
+
+      <!-- MY STATS -->
+      <div class="stats-row" style="margin-bottom:32px">
+        <div class="stat-card">
+          <div class="stat-number">${myItems.length}</div>
+          <div class="stat-label">Total Reports</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" style="color:var(--lost)">${myLost}</div>
+          <div class="stat-label">Lost Items</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" style="color:var(--found)">${myFound}</div>
+          <div class="stat-label">Found Reports</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" style="color:var(--matched)">${myMatched}</div>
+          <div class="stat-label">Matched</div>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="tabs" id="profile-tabs" style="margin-bottom:24px">
+        <button class="tab-btn active" data-tab="my-items">My Items (${myItems.length})</button>
+        <button class="tab-btn" data-tab="notifications">Notifications (${myNotifs.filter(n=>!n.read).length} new)</button>
+        <button class="tab-btn" data-tab="matches">My Matches</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+      </div>
+
+      <!-- MY ITEMS PANEL -->
+      <div class="tab-panel active" data-tab-panel="my-items">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3>My Reports</h3>
+          <a href="report.html" class="btn btn-primary btn-sm">+ New Report</a>
+        </div>
+        ${myItems.length ? `<div class="items-grid">${myItems.map(i => UI.renderItemCard(i)).join('')}</div>` : `
+          <div style="text-align:center;padding:60px;color:var(--text-muted)">
+            <div style="font-size:3rem;margin-bottom:12px">📋</div>
+            <p>You haven't reported any items yet.</p>
+            <a href="report.html" class="btn btn-primary" style="margin-top:12px">Report an Item</a>
+          </div>
+        `}
+      </div>
+
+      <!-- NOTIFICATIONS PANEL -->
+      <div class="tab-panel" data-tab-panel="notifications">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3>Notifications</h3>
+          <button class="btn btn-ghost btn-sm" onclick="markAllRead()">✓ Mark all read</button>
+        </div>
+        <div class="notif-list" id="notif-list">
+          ${myNotifs.length ? myNotifs.map(n => `
+            <div class="notif-item ${n.read ? '' : 'unread'}" onclick="readNotif('${n.id}', '${n.itemId}')">
+              <div class="notif-icon" style="background:${n.type==='match'?'rgba(167,139,250,0.2)':n.type==='info'?'rgba(245,166,35,0.2)':'rgba(62,207,178,0.2)'}">
+                ${n.type==='match'?'🔗':n.type==='info'?'ℹ️':'✅'}
+              </div>
+              <div class="notif-body">
+                <div class="notif-title">${n.title}</div>
+                <div class="notif-msg">${n.message}</div>
+                <div class="notif-time">${UI.timeAgo(n.createdAt)}</div>
+              </div>
+              ${!n.read ? '<div class="notif-dot" style="position:static;width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:4px"></div>' : ''}
+            </div>
+          `).join('') : '<div style="text-align:center;padding:40px;color:var(--text-muted)">No notifications yet</div>'}
+        </div>
+      </div>
+
+      <!-- MATCHES PANEL -->
+      <div class="tab-panel" data-tab-panel="matches">
+        <h3 style="margin-bottom:16px">My Matches</h3>
+        ${(() => {
+          const matched = myItems.filter(i => i.matchId);
+          if (!matched.length) return '<div style="text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:12px">🔗</div><p>No matches yet. Keep an eye on your reports!</p></div>';
+          return matched.map(item => {
+            const match = DB.getById('items', item.matchId);
+            if (!match) return '';
+            const score = DB.getMatchScore(item, match);
+            return `
+              <div class="match-card" style="margin-bottom:12px;cursor:pointer" onclick="UI.openItemDetail('${item.id}')">
+                <div class="match-score">${score}%</div>
+                <div style="flex:1">
+                  <div style="font-weight:700">Your ${item.type}: ${item.title}</div>
+                  <div style="font-size:13px;color:var(--text-muted)">↔ Matched with: ${match.title}</div>
+                  <div style="font-size:12px;color:var(--text-muted);margin-top:3px">${match.location}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+                  <span class="badge badge-matched">Matched</span>
+                  <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();UI.openItemDetail('${match.id}')">View Match</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        })()}
+      </div>
+
+      <!-- SETTINGS PANEL -->
+      <div class="tab-panel" data-tab-panel="settings">
+        <h3 style="margin-bottom:20px">Account Settings</h3>
+        <div class="card" style="max-width:480px">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="settings-name" value="${session.name}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" value="${session.email}" disabled style="opacity:0.6">
+          </div>
+          <div class="divider"></div>
+          <div class="form-group">
+            <label class="form-label">New Password <span style="color:var(--text-muted);font-weight:400">(leave blank to keep current)</span></label>
+            <input type="password" class="form-control" id="settings-password" placeholder="New password">
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+        </div>
+      </div>
+    `;
+
+    // ── INIT TABS ──
+    document.getElementById('profile-tabs').querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#profile-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const panel = document.querySelector(`[data-tab-panel="${btn.dataset.tab}"]`);
+        if (panel) panel.classList.add('active');
+      });
+    });
+
+    // ── NOTIFICATION ACTIONS ──
+    window.readNotif = (id, itemId) => {
+      DB.markNotifRead(id);
+      if (itemId) UI.openItemDetail(itemId);
+      document.querySelector(`[onclick="readNotif('${id}', '${itemId}')"]`)?.classList.remove('unread');
+    };
+    window.markAllRead = () => {
+      DB.getNotifications(session.id).forEach(n => DB.markNotifRead(n.id));
+      document.querySelectorAll('.notif-item').forEach(el => el.classList.remove('unread'));
+      UI.toast('All notifications marked as read', 'success');
+    };
+
+    // ── LOGOUT ──
+    window.logout = () => {
+      DB.clearSession();
+      UI.toast('Logged out successfully', 'info');
+      setTimeout(() => window.location.href = 'index.html', 600);
+    };
+
+    // ── SAVE SETTINGS ──
+    window.saveSettings = () => {
+      const name = document.getElementById('settings-name').value.trim();
+      const pass = document.getElementById('settings-password').value;
+      if (!name) { UI.toast('Name cannot be empty', 'error'); return; }
+      const patch = { name, avatar: name[0].toUpperCase() };
+      if (pass) patch.password = pass;
+      DB.updateRecord('users', session.id, patch);
+      DB.setSession({ ...session, ...patch });
+      UI.toast('Settings saved!', 'success');
+    };
+  </script>
+</body>
+</html>
